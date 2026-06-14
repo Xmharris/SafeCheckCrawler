@@ -14,10 +14,9 @@ CONFIG = {
     # A polite fallback delay if the server doesn't specify one in robots.txt
     'DEFAULT_CRAWL_DELAY': 3.0, 
     
-    # Sample targets for support groups or grant databases
+    # Sample target URLs
     'TARGET_URLS': [
-        'https://en.wikipedia.org/wiki/Main_Page',
-        # 'https://grants.example.gov/database',
+        'https://example.com',
     ]
 }
 class EthicalComplianceManager:
@@ -125,7 +124,7 @@ class BaseScraper(ABC):
 
     @abstractmethod
     def parse(self, html: str) -> Any:
-        """Extract entities (like support meetings or grants) from raw HTML."""
+        """Extract entities from raw HTML."""
         pass
 
     def scrape(self, url: str) -> Any:
@@ -160,61 +159,42 @@ class ScraperFactory:
             raise NotImplementedError(f"No scraper implemented for domain: {domain}")
         return scraper_cls(compliance_manager)
 
-@ScraperFactory.register('en.wikipedia.org')
-class WikipediaScraper(BaseScraper):
+@ScraperFactory.register('example.com')
+class ExampleScraper(BaseScraper):
     """
-    Concrete implementation tailored for Wikipedia's DOM structure.
+    Concrete implementation tailored for a specific domain.
     """
     def parse(self, html: str) -> Dict[str, Any]:
-        # In production, use BeautifulSoup: soup = BeautifulSoup(html, 'html.parser')
-        # This is a lightweight text extraction for demonstration.
+        # Implement custom HTML parsing logic here (e.g. using BeautifulSoup)
         title_start = html.find('<title>') + 7
         title_end = html.find('</title>')
         title = html[title_start:title_end] if title_start > 6 else "Unknown Title"
         
-        # Format data symmetrically for easy database (SQL/NoSQL) ingestion
         prepared_data = {
-            'source_domain': 'en.wikipedia.org',
-            'page_title': title.replace(' - Wikipedia', ''),
+            'source_domain': 'example.com',
+            'page_title': title.strip(),
             'scraped_bytes': len(html),
             'timestamp': time.time()
         }
         return prepared_data
 
-# 1. Setup the Compliance Manager
-manager = EthicalComplianceManager(CONFIG['USER_AGENT'])
-
-# 2. Test Rules dynamically 
-test_endpoints = [
-    'https://en.wikipedia.org/wiki/Web_scraping',            # Public article (Expected: Allowed)
-    'https://en.wikipedia.org/wiki/Special:Search',          # High-load endpoint (Expected: Often Blocked)
-    'https://en.wikipedia.org/w/api.php'                     # API endpoint (Specific rules usually apply)
-]
-
-print("========== ETHICAL COMPLIANCE DIAGNOSTICS ==========")
-for endpoint in test_endpoints:
-    is_allowed = manager.can_fetch(endpoint)
-    delay = manager.get_crawl_delay(endpoint, CONFIG['DEFAULT_CRAWL_DELAY'])
+if __name__ == "__main__":
+    # Setup the Compliance Manager
+    manager = EthicalComplianceManager(CONFIG['USER_AGENT'])
     
-    print(f"Target: {endpoint}")
-    print(f" ├── Access Granted: {'Yes' if is_allowed else 'No'}")
-    print(f" └── Required Delay: {delay} seconds\n")
-
-
-# 3. Test Full Pipeline (Factory -> Rate Limit -> Fetch -> Parse -> DB Prep)
-print("========== FULL SCRAPE PIPELINE TEST ==========")
-target_url = 'https://en.wikipedia.org/wiki/Web_scraping'
-try:
-    # Factory instantiates the exact scraper needed
-    active_scraper = ScraperFactory.get_scraper(target_url, manager)
-    
-    # Perform the scrape (handles politeness, fetch, and parse automatically)
-    database_record = active_scraper.scrape(target_url)
-    
-    if database_record:
-        print("\n[+] Scrape successful. Data ready for database insertion:")
-        import json
-        print(json.dumps(database_record, indent=4))
-    
-except Exception as e:
-    print(f"Pipeline Error: {e}")
+    print("========== RUNNING SCRAPER PIPELINE ==========")
+    for target_url in CONFIG['TARGET_URLS']:
+        try:
+            # Factory instantiates the exact scraper needed
+            active_scraper = ScraperFactory.get_scraper(target_url, manager)
+            
+            # Perform the scrape (handles politeness, fetch, and parse automatically)
+            data_record = active_scraper.scrape(target_url)
+            
+            if data_record:
+                print(f"\n[+] Scrape successful for {target_url}. Prepared record:")
+                import json
+                print(json.dumps(data_record, indent=4))
+            
+        except Exception as e:
+            print(f"[!] Pipeline Error for {target_url}: {e}")

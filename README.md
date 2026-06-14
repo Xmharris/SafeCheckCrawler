@@ -1,6 +1,6 @@
 # Ethical Web Scraper Framework
 
-A modular, extensible, and compliance-first Python web scraping framework designed to scrape web directories (such as support group meetings or grant databases) while strictly adhering to data privacy and host server directives.
+A modular, extensible, and compliance-first Python web scraping framework designed to crawl web resources while strictly adhering to data privacy and host server directives.
 
 ---
 
@@ -36,7 +36,7 @@ graph TD
 2.  **`EthicalComplianceManager`**: Maintains an in-memory cache of `robots.txt` rules and tracking history of requests to dynamically apply backoffs per domain.
 3.  **`BaseScraper` (Template Pattern)**: Outlines the workflow contract (`scrape()`), executing safety/delay steps first before invoking the abstract `parse()` method.
 4.  **`ScraperFactory`**: A registry that dynamically maps target domains to specialized scraper classes using Python class decorators.
-5.  **Specialized Scrapers (e.g., `WikipediaScraper`)**: Concrete implementations containing custom DOM extraction logic, returning unified records prepared for database ingestion.
+5.  **Specialized Scrapers (e.g., `ExampleScraper`)**: Concrete implementations containing custom DOM extraction logic, returning unified records prepared for database ingestion.
 
 ---
 
@@ -77,27 +77,27 @@ For interactive execution and debugging:
 
 To add support for a new website, register a new subclass of `BaseScraper` using the `@ScraperFactory.register` decorator and implement the custom HTML parsing logic.
 
-### Example: Adding a Grant Directory Scraper
+### Example: Adding a Custom Scraper
 
 ```python
 from typing import Dict, Any
 
-@ScraperFactory.register('grants.example.gov')
-class GrantScraper(BaseScraper):
+@ScraperFactory.register('example.com')
+class ExampleScraper(BaseScraper):
     """
-    Concrete scraper for extracting government grant listings.
+    Concrete scraper for extracting data from example.com.
     """
     def parse(self, html: str) -> Dict[str, Any]:
         # Implement your parsing logic (e.g., regex, html.find, or BeautifulSoup)
-        # return a clean dictionary structured for SQL/NoSQL storage.
+        # and return a clean dictionary structured for storage.
         return {
-            "source_domain": "grants.example.gov",
-            "extracted_data": "Custom grant data values extracted from HTML",
+            "source_domain": "example.com",
+            "extracted_data": "Custom values extracted from HTML",
             "timestamp": time.time()
         }
 ```
 
-Once registered, any call to `ScraperFactory.get_scraper("https://grants.example.gov/database", manager)` will automatically select and use your custom `GrantScraper`.
+Once registered, any call to `ScraperFactory.get_scraper("https://example.com/page", manager)` will automatically select and use your custom `ExampleScraper`.
 
 ---
 
